@@ -10,9 +10,7 @@ print ("data shape: ", X.shape, y.shape)
 theta_star = np.load('data/theta_star.npy')
 
 ###### part (1): least square estimator ########
-
-theta_hat = None # TODO: calculate the least square solution
-
+theta_hat = np.linalg.inv(X.T @ X) @ (X.T @ y) # TODO: calculate the least square solution
 Error_LS = np.linalg.norm(theta_hat - theta_star, 2)
 print('Estimator approximated by LS:',Error_LS)
 
@@ -32,7 +30,9 @@ for _ in range(1, T):
     Error_huber.append(np.linalg.norm(theta-theta_star, 2)) 
 
     # TODO: calculate gradient
-    grad = None
+    r = X @ theta - y
+    g = np.where(np.abs(r) <= mu, r/mu, np.sign(r))
+    grad = X.T @ g
 
     #gradient descent update
     theta = theta - alpha * grad

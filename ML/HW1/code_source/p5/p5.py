@@ -112,7 +112,8 @@ threshold = 1e-4
 theta = np.zeros((d, 1))
 
 for iterate in range(iters):
-    pass # TODO: add training code for perceptron and pocket
+    # TODO: add training code for perceptron and pocket
+    
 
 # plot Er_in and Er_out
 # TODO

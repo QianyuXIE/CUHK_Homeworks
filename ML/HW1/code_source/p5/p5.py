@@ -1,6 +1,7 @@
 import scipy.io
 import matplotlib.pyplot as plt
 import numpy as np
+import random
 
 def load_mat(path, d=16):
     data = scipy.io.loadmat(path)['zip']
@@ -100,16 +101,13 @@ cls_A, cls_B = 1, 6
 X, y, = cal_feature_cls(train_data, train_label, cls_A=cls_A, cls_B=cls_B)
 X_test, y_test = cal_feature_cls(test_data, test_label, cls_A=cls_A, cls_B=cls_B)
 
-# train_feat = cal_feature(train_data)
-# plot_feature(train_feat, train_label, plot_num)
-# plt.show()
-
 # train
 iters = 2000
 d = 2
 num_sample = X.shape[0]
 threshold = 1e-4
 theta = np.zeros((d+1, 1))
+theta_pocket = theta.copy()
 learningRate = 1.0
 
 X = np.hstack([np.ones((X.shape[0], 1)), X])
@@ -125,21 +123,21 @@ er_out_pocket = []
 
 for iterate in range(iters):
     # TODO: add training code for perceptron and pocket
-    total_error = 0
-    for i in range(len(X)):
+    for j in range(len(X)):
         
-        current_X = X[i]
+        i = random.randint(0, len(X)-1)
+        current_X = X[i:i+1]
         prediction = np.dot(current_X, theta)
         f = np.sign(prediction - threshold)
 
         # Update weights if there is an error
-        
         if f != y[i]:
             error = y[i] - f
-            theta += learningRate * error * current_X
-            total_error += abs(error)
+            theta += learningRate * error * current_X.T
+            break
     
     current_in_error = cal_error(theta, X, y, threshold)
+
     # save the best weights for pocket algorithm
     if current_in_error < best_in_error:
         theta_pocket = theta.copy()
@@ -150,11 +148,6 @@ for iterate in range(iters):
     er_in_pocket.append(cal_error(theta_pocket, X, y, threshold))
     er_out_perceptron.append(cal_error(theta, X_test, y_test, threshold))
     er_out_pocket.append(cal_error(theta_pocket, X_test, y_test, threshold))
-
-    # if no error, stop the iteration
-    if total_error == 0:
-        print(f"Perceptron converged at iteration {iterate+1}")
-        break
     
 
 # plot Er_in and Er_out
@@ -184,28 +177,34 @@ plt.show()
 
 # plot decision boundary
 # TODO you may utilize the plot_feature() function.
-plt.figure(figsize=(10, 8))
-plot_feature(X, y, plot_num=500, classes=[cls_A, cls_B])
+X_plot = X[:, 1:]
+y_plot = np.where(y == 1, cls_A, cls_B)
+fig, ax = plt.subplots(figsize=(10, 8))
+plot_feature(X_plot, y_plot, plot_num=500, ax=ax, classes=[cls_A, cls_B])
+ax.set_title('Feature Plot with Final Classification Boundaries (1 vs 6)')
 
-# --- 绘制决策边界 ---
-x1_min, x1_max = X[:, 0].min(), X[:, 0].max()
+x1_min = X_plot[:, 0].min()
+x1_max = X_plot[:, 0].max()
 x1_line = np.linspace(x1_min, x1_max, 100)
 
-# 感知机的边界
-w_p = theta.flatten()
-x2_perceptron = -(w_p[0] + w_p[1] * x1_line) / w_p[2]
-plt.plot(x1_line, x2_perceptron, 'b--', label='Perceptron Boundary')
+# plot perceptron's decision boundary
+w_perceptron = theta.flatten()
+if abs(w_perceptron[2]) > 1e-10:
+    x2_line_perceptron = -(w_perceptron[0] - threshold + w_perceptron[1] * x1_line) / w_perceptron[2]
+    ax.plot(x1_line, x2_line_perceptron, 'b--', linewidth=2, label='Perceptron Boundary')
 
-# 口袋算法的边界
-w_pk = theta_pocket.flatten()
-x2_pocket = -(w_pk[0] + w_pk[1] * x1_line) / w_pk[2]
-plt.plot(x1_line, x2_pocket, 'g--', label='Pocket Algorithm Boundary')
+# plot pocket algorithm's decision boundary
+w_pocket = theta_pocket.flatten()
+if abs(w_pocket[2]) > 1e-10:
+    x2_line_pocket = -(w_pocket[0] - threshold + w_pocket[1] * x1_line) / w_pocket[2]
+    ax.plot(x1_line, x2_line_pocket, 'r', linewidth=2, label='Pocket Algorithm Boundary')
 
-plt.legend()
-plt.title('Final Classification Boundaries (500 samples)')
+ax.legend()
+ax.set_xlabel('Intensity')
+ax.set_ylabel('Asymmetry')
+ax.grid(True, alpha=0.3)
 plt.show()
 
-# 打印最终结果
 print(f"Final Perceptron Er_in:  {er_in_perceptron[-1]:.6f}")
 print(f"Final Perceptron Er_out: {er_out_perceptron[-1]:.6f}")
 print(f"Final Pocket     Er_in:  {er_in_pocket[-1]:.6f}")

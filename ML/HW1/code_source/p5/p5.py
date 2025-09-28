@@ -35,7 +35,7 @@ def cal_feature(data):
 
     return feat
 
-def cal_feature_cls(data, label, cls_A=1, cls_B=5):
+def cal_feature_cls(data, label, cls_A=1, cls_B=6):
     """ calculate the intensity and symmetry feature of given classes
     Input:
         data: (n, d1, d2), the image data matrix
@@ -109,14 +109,104 @@ iters = 2000
 d = 2
 num_sample = X.shape[0]
 threshold = 1e-4
-theta = np.zeros((d, 1))
+theta = np.zeros((d+1, 1))
+learningRate = 1.0
+
+X = np.hstack([np.ones((X.shape[0], 1)), X])
+X_test = np.hstack([np.ones((X_test.shape[0], 1)), X_test])
+
+initial_error = cal_error(theta, X, y, threshold)
+best_in_error = initial_error
+
+er_in_perceptron = []
+er_in_pocket = []
+er_out_perceptron = []
+er_out_pocket = []
 
 for iterate in range(iters):
     # TODO: add training code for perceptron and pocket
+    total_error = 0
+    for i in range(len(X)):
+        
+        current_X = X[i]
+        prediction = np.dot(current_X, theta)
+        f = np.sign(prediction - threshold)
+
+        # Update weights if there is an error
+        
+        if f != y[i]:
+            error = y[i] - f
+            theta += learningRate * error * current_X
+            total_error += abs(error)
+    
+    current_in_error = cal_error(theta, X, y, threshold)
+    # save the best weights for pocket algorithm
+    if current_in_error < best_in_error:
+        theta_pocket = theta.copy()
+        best_in_error = current_in_error
+    
+    # record errors
+    er_in_perceptron.append(cal_error(theta, X, y, threshold))
+    er_in_pocket.append(cal_error(theta_pocket, X, y, threshold))
+    er_out_perceptron.append(cal_error(theta, X_test, y_test, threshold))
+    er_out_pocket.append(cal_error(theta_pocket, X_test, y_test, threshold))
+
+    # if no error, stop the iteration
+    if total_error == 0:
+        print(f"Perceptron converged at iteration {iterate+1}")
+        break
     
 
 # plot Er_in and Er_out
 # TODO
+plt.figure(figsize=(12, 5))
+
+plt.subplot(1, 2, 1)
+plt.plot(er_in_perceptron, label='Perceptron (Er_in)', color='blue', alpha=0.7)
+plt.plot(er_in_pocket, label='Pocket Algorithm (Er_in)', color='red', linewidth=2)
+plt.xlabel('Iteration')
+plt.ylabel('In-Sample Error (Er_in)')
+plt.title('In-Sample Error vs. Number of Iterations')
+plt.legend()
+plt.grid(True, alpha=0.3)
+
+plt.subplot(1, 2, 2)
+plt.plot(er_out_perceptron, label='Perceptron (Er_out)', color='blue', alpha=0.7)
+plt.plot(er_out_pocket, label='Pocket Algorithm (Er_out)', color='red', linewidth=2)
+plt.xlabel('Iteration')
+plt.ylabel('Out-of-Sample Error (Er_out)')
+plt.title('Out-of-Sample Error vs. Number of Iterations')
+plt.legend()
+plt.grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.show()
 
 # plot decision boundary
 # TODO you may utilize the plot_feature() function.
+plt.figure(figsize=(10, 8))
+plot_feature(X, y, plot_num=500, classes=[cls_A, cls_B])
+
+# --- 绘制决策边界 ---
+x1_min, x1_max = X[:, 0].min(), X[:, 0].max()
+x1_line = np.linspace(x1_min, x1_max, 100)
+
+# 感知机的边界
+w_p = theta.flatten()
+x2_perceptron = -(w_p[0] + w_p[1] * x1_line) / w_p[2]
+plt.plot(x1_line, x2_perceptron, 'b--', label='Perceptron Boundary')
+
+# 口袋算法的边界
+w_pk = theta_pocket.flatten()
+x2_pocket = -(w_pk[0] + w_pk[1] * x1_line) / w_pk[2]
+plt.plot(x1_line, x2_pocket, 'g--', label='Pocket Algorithm Boundary')
+
+plt.legend()
+plt.title('Final Classification Boundaries (500 samples)')
+plt.show()
+
+# 打印最终结果
+print(f"Final Perceptron Er_in:  {er_in_perceptron[-1]:.6f}")
+print(f"Final Perceptron Er_out: {er_out_perceptron[-1]:.6f}")
+print(f"Final Pocket     Er_in:  {er_in_pocket[-1]:.6f}")
+print(f"Final Pocket     Er_out: {er_out_pocket[-1]:.6f}")
